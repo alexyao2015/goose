@@ -13,6 +13,7 @@ export function getGooseInstallLink(server: MCPServer): string {
 
   // Handle the case where the command is a URL
   if (server.url) {
+    const paramName = server.type === "streamable-http" ? "header" : "env";
     const queryParams = [
       // Map the type to the expected format for the deep link
       ...(server.type === "streamable-http" ? [`type=streamable_http`] : []),
@@ -22,9 +23,10 @@ export function getGooseInstallLink(server: MCPServer): string {
       `description=${encodeURIComponent(server.description)}`,
       ...server.environmentVariables
         .filter((env) => env.required)
-        .map(
-          (env) => `env=${encodeURIComponent(`${env.name}=${env.description}`)}`
-        ),
+        .map((env) => {
+          const suffix = env.description ? `=${env.description}` : '';
+          return `${paramName}=${encodeURIComponent(env.name + suffix)}`;
+        }),
     ].join("&");
   
     return `goose://extension?${queryParams}`;
@@ -42,9 +44,10 @@ export function getGooseInstallLink(server: MCPServer): string {
     `description=${encodeURIComponent(server.description)}`,
     ...server.environmentVariables
       .filter((env) => env.required)
-      .map(
-        (env) => `env=${encodeURIComponent(`${env.name}=${env.description}`)}`
-      ),
+      .map((env) => {
+        const suffix = env.description ? `=${env.description}` : '';
+        return `env=${encodeURIComponent(env.name + suffix)}`;
+      }),
   ].join("&");
 
   return `goose://extension?${queryParams}`;
