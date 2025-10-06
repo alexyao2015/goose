@@ -16,6 +16,8 @@ import { ToastContainer } from 'react-toastify';
 import { GoosehintsModal } from './components/GoosehintsModal';
 import AnnouncementModal from './components/AnnouncementModal';
 import ProviderGuard from './components/ProviderGuard';
+import { SamplingApprovalModal } from './components/ui/SamplingApprovalModal';
+import { useSamplingApproval } from './hooks/useSamplingApproval';
 
 import { ChatType } from './types/chat';
 import Hub from './components/hub';
@@ -286,6 +288,14 @@ export function AppInner() {
 
   const navigate = useNavigate();
   const setView = useNavigation();
+
+  // Sampling approval hook
+  const {
+    currentRequest,
+    approveSamplingRequest,
+    denySamplingRequest,
+    dismissCurrentRequest,
+  } = useSamplingApproval();
 
   const location = useLocation();
   const [_searchParams, setSearchParams] = useSearchParams();
@@ -589,6 +599,15 @@ export function AppInner() {
         <GoosehintsModal
           directory={window.appConfig?.get('GOOSE_WORKING_DIR') as string}
           setIsGoosehintsModalOpen={setIsGoosehintsModalOpen}
+        />
+      )}
+      {currentRequest && (
+        <SamplingApprovalModal
+          request={currentRequest}
+          onApprove={approveSamplingRequest}
+          onDeny={denySamplingRequest}
+          onDismiss={dismissCurrentRequest}
+          isOpen={true}
         />
       )}
     </>
