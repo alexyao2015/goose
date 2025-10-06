@@ -92,6 +92,7 @@ pub struct ExtensionManager {
     extensions: Mutex<HashMap<String, Extension>>,
     context: Mutex<PlatformExtensionContext>,
     provider: Arc<Mutex<Option<Arc<dyn Provider>>>>,
+    approval_callback: Arc<Mutex<Option<ApprovalCallback>>>,
 }
 
 /// A flattened representation of a resource used by the agent to prepare inference
@@ -253,7 +254,13 @@ impl ExtensionManager {
             extensions: Mutex::new(HashMap::new()),
             context: Mutex::new(PlatformExtensionContext { session_id: None }),
             provider: Arc::new(Mutex::new(None)),
+            approval_callback: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Set the approval callback for sampling requests
+    pub async fn set_approval_callback(&self, callback: ApprovalCallback) {
+        *self.approval_callback.lock().await = Some(callback);
     }
 
     pub async fn set_context(&self, context: PlatformExtensionContext) {
@@ -345,10 +352,21 @@ impl ExtensionManager {
         }
 
         // Create sampling handler for this extension
-        let sampling_handler = Box::new(ExtensionSamplingHandler::new(
-            self.provider.clone(),
-            sanitized_name.clone(),
-        ));
+        let sampling_handler = {
+            let approval_callback_guard = self.approval_callback.lock().await;
+            if let Some(callback) = approval_callback_guard.as_ref() {
+                Box::new(ExtensionSamplingHandler::with_approval_callback(
+                    self.provider.clone(),
+                    sanitized_name.clone(),
+                    callback.clone(),
+                ))
+            } else {
+                Box::new(ExtensionSamplingHandler::new(
+                    self.provider.clone(),
+                    sanitized_name.clone(),
+                ))
+            }
+        };
 
         let client: Box<dyn McpClientTrait> = match &config {
             ExtensionConfig::Sse { uri, timeout, .. } => {
@@ -1142,18 +1160,35 @@ impl ExtensionManager {
     }
 }
 
+/// Callback type for requesting approval from the UI
+pub type ApprovalCallback = Arc<dyn Fn(CreateMessageRequestParam, String) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<bool, ServiceError>> + Send>> + Send + Sync>;
+
 /// Wrapper struct to implement SamplingHandler for ExtensionManager
 #[derive(Clone)]
 pub struct ExtensionSamplingHandler {
     provider: Arc<Mutex<Option<Arc<dyn Provider>>>>,
-    _extension_name: String,
+    extension_name: String,
+    approval_callback: Option<ApprovalCallback>,
 }
 
 impl ExtensionSamplingHandler {
     pub fn new(provider: Arc<Mutex<Option<Arc<dyn Provider>>>>, extension_name: String) -> Self {
         Self {
             provider,
-            _extension_name: extension_name,
+            extension_name,
+            approval_callback: None,
+        }
+    }
+
+    pub fn with_approval_callback(
+        provider: Arc<Mutex<Option<Arc<dyn Provider>>>>,
+        extension_name: String,
+        approval_callback: ApprovalCallback,
+    ) -> Self {
+        Self {
+            provider,
+            extension_name,
+            approval_callback: Some(approval_callback),
         }
     }
 }
@@ -1165,6 +1200,16 @@ impl SamplingHandler for ExtensionSamplingHandler {
         params: CreateMessageRequestParam,
         _extension_name: String,
     ) -> Result<CreateMessageResult, ServiceError> {
+        // If approval callback is set, request approval first
+        if let Some(ref callback) = self.approval_callback {
+            let approved = callback(params.clone(), self.extension_name.clone()).await?;
+            if !approved {
+                return Err(ServiceError::Cancelled {
+                    reason: Some("User denied sampling request".to_string()),
+                });
+            }
+        }
+
         // Get the provider from the shared reference
         let provider_lock = self.provider.lock().await;
         let provider = provider_lock
