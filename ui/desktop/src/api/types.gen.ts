@@ -15,6 +15,14 @@ export type Annotations = {
     priority?: number;
 };
 
+export type ApprovalRequest = {
+    approved: boolean;
+};
+
+export type ApprovalResponse = {
+    success: boolean;
+};
+
 export type Author = {
     contact?: string | null;
     metadata?: string | null;
@@ -413,6 +421,10 @@ export type MessageMetadata = {
     userVisible?: boolean;
 };
 
+export type ModelHint = {
+    name?: string | null;
+};
+
 /**
  * Information about a model's capabilities
  */
@@ -441,6 +453,13 @@ export type ModelInfo = {
      * Whether this model supports cache control
      */
     supports_cache_control?: boolean | null;
+};
+
+export type ModelPreferences = {
+    cost_priority?: number | null;
+    hints?: Array<ModelHint> | null;
+    intelligence_priority?: number | null;
+    speed_priority?: number | null;
 };
 
 export type ParseRecipeRequest = {
@@ -642,6 +661,20 @@ export type Role = string;
 
 export type RunNowResponse = {
     session_id: string;
+};
+
+export type SamplingMessage = {
+    content: string;
+    role: string;
+};
+
+export type SamplingRequest = {
+    extension_name: string;
+    id: string;
+    max_tokens: number;
+    messages: Array<SamplingMessage>;
+    model_preferences?: ModelPreferences | null;
+    system_prompt?: string | null;
 };
 
 export type SaveRecipeRequest = {
@@ -1849,6 +1882,58 @@ export type ReplyResponses = {
      */
     200: unknown;
 };
+
+export type GetPendingRequestsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/sampling/pending';
+};
+
+export type GetPendingRequestsErrors = {
+    /**
+     * Internal server error
+     */
+    500: unknown;
+};
+
+export type GetPendingRequestsResponses = {
+    /**
+     * List of pending sampling requests
+     */
+    200: Array<SamplingRequest>;
+};
+
+export type GetPendingRequestsResponse = GetPendingRequestsResponses[keyof GetPendingRequestsResponses];
+
+export type ApproveSamplingRequestData = {
+    body: ApprovalRequest;
+    path: {
+        request_id: string;
+    };
+    query?: never;
+    url: '/sampling/{request_id}/approve';
+};
+
+export type ApproveSamplingRequestErrors = {
+    /**
+     * Request not found
+     */
+    404: unknown;
+    /**
+     * Internal server error
+     */
+    500: unknown;
+};
+
+export type ApproveSamplingRequestResponses = {
+    /**
+     * Approval recorded successfully
+     */
+    200: ApprovalResponse;
+};
+
+export type ApproveSamplingRequestResponse = ApproveSamplingRequestResponses[keyof ApproveSamplingRequestResponses];
 
 export type CreateScheduleData = {
     body: CreateScheduleRequest;

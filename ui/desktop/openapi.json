@@ -1235,6 +1235,78 @@
         }
       }
     },
+    "/sampling/pending": {
+      "get": {
+        "tags": [
+          "super::routes::sampling"
+        ],
+        "operationId": "get_pending_requests",
+        "responses": {
+          "200": {
+            "description": "List of pending sampling requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SamplingRequest"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/sampling/{request_id}/approve": {
+      "post": {
+        "tags": [
+          "super::routes::sampling"
+        ],
+        "operationId": "approve_sampling_request",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Approval recorded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/schedule/create": {
       "post": {
         "tags": [
@@ -1893,6 +1965,28 @@
           },
           "priority": {
             "type": "number"
+          }
+        }
+      },
+      "ApprovalRequest": {
+        "type": "object",
+        "required": [
+          "approved"
+        ],
+        "properties": {
+          "approved": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApprovalResponse": {
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
           }
         }
       },
@@ -3142,6 +3236,15 @@
           }
         }
       },
+      "ModelHint": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "ModelInfo": {
         "type": "object",
         "description": "Information about a model's capabilities",
@@ -3179,6 +3282,33 @@
           "supports_cache_control": {
             "type": "boolean",
             "description": "Whether this model supports cache control",
+            "nullable": true
+          }
+        }
+      },
+      "ModelPreferences": {
+        "type": "object",
+        "properties": {
+          "cost_priority": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "hints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelHint"
+            },
+            "nullable": true
+          },
+          "intelligence_priority": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "speed_priority": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           }
         }
@@ -3730,6 +3860,60 @@
         "properties": {
           "session_id": {
             "type": "string"
+          }
+        }
+      },
+      "SamplingMessage": {
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      },
+      "SamplingRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "extension_name",
+          "messages",
+          "max_tokens"
+        ],
+        "properties": {
+          "extension_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SamplingMessage"
+            }
+          },
+          "model_preferences": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModelPreferences"
+              }
+            ],
+            "nullable": true
+          },
+          "system_prompt": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
